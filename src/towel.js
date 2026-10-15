@@ -133,7 +133,7 @@ export function towelFace() {
 // Weight (GSM) drives loop height and density.
 export function pilePath(gsm, width = 600, base = 120) {
   const t = (gsm - 300) / 600; // 0..~1
-  const count = Math.round(26 + t * 30);
+  const count = Math.max(14, Math.round((26 + t * 30) * width / 600));
   const hgt = 26 + t * 58;
   const step = width / count;
   let top = '';

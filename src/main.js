@@ -7,6 +7,8 @@ import { initFabric } from './fabric.js';
 import { towelStack, towelFace, pilePath } from './towel.js';
 
 gsap.registerPlugin(ScrollTrigger, SplitText);
+// Mobile browsers resize the viewport as the address bar hides; don't re-layout for that.
+ScrollTrigger.config({ ignoreMobileResize: true });
 
 // ------------------------------------------------------------------
 // Contact details — replace these with the real ones before launch.
@@ -137,7 +139,7 @@ function setupScroll() {
   const mm = gsap.matchMedia();
 
   // Collection: pinned horizontal journey on wide screens
-  mm.add('(min-width: 861px)', () => {
+  mm.add('(min-width: 861px) and (min-height: 600px)', () => {
     const track = $('.collection-track');
     const distance = () => track.scrollWidth - innerWidth;
     const scroller = gsap.to(track, {
@@ -161,7 +163,7 @@ function setupScroll() {
       });
     });
   });
-  mm.add('(max-width: 860px)', () => {
+  mm.add('(max-width: 860px), (max-height: 599px)', () => {
     $$('.tier').forEach((tier) => {
       gsap.from(tier.querySelectorAll('.towel'), {
         y: -120, opacity: 0, duration: 1.1, ease: 'bounce.out', stagger: 0.14,
@@ -179,8 +181,9 @@ function setupScroll() {
     y: 80, opacity: 0, duration: 1.3, ease: 'expo.out', stagger: { each: 0.08, grid: 'auto', from: 'start' },
     scrollTrigger: { trigger: '.range-grid', start: 'top 80%' },
   });
+  // clip-path, not transforms: the shapes are centred with CSS translate
   gsap.from('.rc-shape', {
-    scaleY: 0, transformOrigin: '50% 0%', duration: 1.6, ease: 'expo.out', stagger: 0.08,
+    clipPath: 'inset(0 0 100% 0)', duration: 1.6, ease: 'expo.out', stagger: 0.08,
     scrollTrigger: { trigger: '.range-grid', start: 'top 75%' },
   });
 
@@ -267,6 +270,8 @@ function setupNav() {
 const toggle = $('.nav-toggle');
 const menu = $('.menu');
 function closeMenu() {
+  if (!menu.classList.contains('is-open')) return;
+  lenis.start();
   menu.classList.remove('is-open');
   menu.setAttribute('aria-hidden', 'true');
   toggle.setAttribute('aria-expanded', 'false');
@@ -284,7 +289,6 @@ toggle.addEventListener('click', () => {
     lenis.start();
   }
 });
-menu.addEventListener('click', (e) => { if (e.target.tagName === 'A') lenis.start(); });
 
 // ---------- GSM explorer ----------
 const gsmInput = $('.gsm-control input');
@@ -298,8 +302,15 @@ const tiers = [
   { max: 800, name: 'Reserve', use: 'Suites, spas and private villas. Deep, heavy, unforgettable.' },
 ];
 const gsmState = { v: 600 };
+const pileSvg = $('.gsm-pile');
+let pileW = 600;
+function sizePile() {
+  pileW = Math.max(280, Math.round(pileSvg.clientWidth)) || 600;
+  pileSvg.setAttribute('viewBox', `0 0 ${pileW} 240`);
+  $('.pile-ground', pileSvg).setAttribute('width', pileW);
+}
 function drawPile(v) {
-  const { top, bot, strokeWidth } = pilePath(v);
+  const { top, bot, strokeWidth } = pilePath(v, pileW);
   pileTop.setAttribute('d', top);
   pileBot.setAttribute('d', bot);
   pileTop.setAttribute('stroke-width', strokeWidth);
@@ -318,8 +329,14 @@ function setGsm(v) {
   gsap.to(gsmState, { v, duration: 0.6, ease: 'power3.out', onUpdate: () => drawPile(gsmState.v) });
 }
 gsmInput.addEventListener('input', () => setGsm(+gsmInput.value));
+sizePile();
 drawPile(600);
 setGsm(600);
+let pileTimer;
+window.addEventListener('resize', () => {
+  clearTimeout(pileTimer);
+  pileTimer = setTimeout(() => { sizePile(); drawPile(gsmState.v); }, 150);
+});
 
 // ---------- Embroidery studio ----------
 const face = $('.towel-face');
