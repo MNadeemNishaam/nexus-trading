@@ -1,10 +1,10 @@
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { SplitText } from 'gsap/SplitText';
-import Lenis from 'lenis';
 import { monogram, wordmark } from './logo.js';
 import { initFabric } from './fabric.js';
 import { towelStack, towelFace, pilePath } from './towel.js';
+import { createSnapper } from './snap.js';
 
 gsap.registerPlugin(ScrollTrigger, SplitText);
 // Mobile browsers resize the viewport as the address bar hides; don't re-layout for that.
@@ -24,26 +24,14 @@ const finePointer = matchMedia('(hover: hover) and (pointer: fine)').matches;
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
 
+if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
+window.scrollTo(0, 0);
+
 // ---------- Logos ----------
 $('[data-logo="stroke"]').innerHTML = monogram({ stroke: true });
 $('[data-logo="wordmark"]').innerHTML = wordmark();
 $('[data-logo="footer"]').innerHTML = monogram();
 $('[data-year]').textContent = new Date().getFullYear();
-
-// ---------- Smooth scroll ----------
-const lenis = new Lenis({ duration: 1.25, easing: (t) => 1 - Math.pow(1 - t, 4), smoothWheel: !reduceMotion });
-lenis.stop();
-lenis.on('scroll', ScrollTrigger.update);
-gsap.ticker.add((t) => lenis.raf(t * 1000));
-gsap.ticker.lagSmoothing(0);
-
-$$('a[href^="#"]').forEach((a) => a.addEventListener('click', (e) => {
-  const target = a.getAttribute('href');
-  if (target.length < 2 && target !== '#top') return;
-  e.preventDefault();
-  closeMenu();
-  lenis.scrollTo(target === '#top' ? 0 : target, { duration: 1.6 });
-}));
 
 // ---------- Fabric ----------
 const fabric = initFabric($('.hero-canvas'));
@@ -60,18 +48,77 @@ $$('[data-stack]').forEach((el) => {
 });
 $('[data-towel-face]').innerHTML = towelFace();
 
+// ---------- Screen snapping ----------
+const colPanels = $$('.col-panel');
+let colScroll = null; // the pinned horizontal collection, when active
+
+function getStops() {
+  return $$('[data-screen]').map((el) => {
+    const k = colPanels.indexOf(el);
+    if (k >= 0 && colScroll) {
+      const st = colScroll.scrollTrigger;
+      return { el, y: st.start + ((st.end - st.start) * k) / (colPanels.length - 1) };
+    }
+    return { el, y: el.getBoundingClientRect().top + scrollY };
+  }).flatMap((s) => {
+    // A screen taller than the viewport (very short landscape phones) gets
+    // extra stops so nothing in it is skipped.
+    const extra = s.el.offsetHeight - innerHeight;
+    if (extra <= 8 || colPanels.includes(s.el)) return [s];
+    const out = [s];
+    for (let d = innerHeight * 0.8; d < extra; d += innerHeight * 0.8) out.push({ el: s.el, y: s.y + d });
+    out.push({ el: s.el, y: s.y + extra });
+    return out;
+  });
+}
+
+const navLinks = $$('.nav-links a');
+const pager = $('.pager');
+const snapper = createSnapper({
+  getStops,
+  reduceMotion,
+  onChange: (i, el) => {
+    $$('li', pager).forEach((li, j) => li.classList.toggle('on', j === i));
+    pager.classList.toggle('is-visible', i > 0);
+    const section = el?.closest('[id]');
+    navLinks.forEach((a) => a.classList.toggle('is-current', !!section && a.getAttribute('href') === `#${section.id}`));
+  },
+});
+
+function buildPager() {
+  $('ol', pager).innerHTML = snapper.stops.map((_, i) => `<li class="${i === snapper.index ? 'on' : ''}"></li>`).join('');
+}
+
+ScrollTrigger.addEventListener('refresh', () => { snapper.realign(); buildPager(); });
+
+$$('a[href^="#"]').forEach((a) => a.addEventListener('click', (e) => {
+  const href = a.getAttribute('href');
+  if (!href.startsWith('#') || href.length < 2) return; // real links (WhatsApp, email) pass through
+  e.preventDefault();
+  closeMenu();
+  if (href === '#top') { snapper.goTo(0); return; }
+  const target = $(href);
+  if (!target) return;
+  const i = snapper.indexOf(target);
+  if (i >= 0) snapper.goTo(i);
+}));
+
 // ---------- Loader → intro ----------
 function intro() {
-  const tl = gsap.timeline({
-    defaults: { ease: 'expo.out' },
-    onComplete: () => { document.body.classList.remove('is-loading'); lenis.start(); },
-  });
+  const ready = () => {
+    document.body.classList.remove('is-loading');
+    snapper.refresh();
+    buildPager();
+    snapper.enable();
+  };
+  const tl = gsap.timeline({ defaults: { ease: 'expo.out' }, onComplete: ready });
   if (reduceMotion) {
     gsap.set(['.hero-canvas', '.hero-sub', '.hero-cta', '.hero-eyebrow'], { opacity: 1 });
     gsap.set('.hero-title .line > span', { y: 0 });
     tl.to('.loader', { opacity: 0, duration: 0.4 }).set('.loader', { display: 'none' });
     return;
   }
+  gsap.set(['.hero-sub', '.hero-cta'], { y: 24 });
   tl.to('.loader-mark .mono-stroke path', { strokeDashoffset: 0, duration: 1.6, ease: 'power2.inOut', stagger: 0.15 })
     .to('.loader-bar i', { scaleX: 1, duration: 1.8, ease: 'power3.inOut' }, 0)
     .to('.loader-word span', { y: 0, duration: 1, stagger: 0.06 }, 0.3)
@@ -87,22 +134,29 @@ function intro() {
     .to('.hero-sub', { opacity: 1, y: 0, duration: 1.4 }, 3.7)
     .to('.hero-cta', { opacity: 1, y: 0, duration: 1.4 }, 3.85)
     .from('.hero-scroll', { opacity: 0, duration: 1 }, 4.2);
-  gsap.set(['.hero-sub', '.hero-cta'], { y: 24 });
+  // Let people move on as soon as the hero headline is up.
+  tl.call(ready, null, 3.6);
 }
 
 document.fonts.ready.then(() => {
-  setupScroll();
+  setupScenes();
   intro();
 });
 
-// ---------- Scroll scenes ----------
-function setupScroll() {
+// ---------- Scenes ----------
+// Each screen plays its entrance as it arrives, so animations land with the snap.
+const onArrive = (trigger, fn, start = 'top 62%') =>
+  ScrollTrigger.create({ trigger, start, once: true, onEnter: fn });
+
+function setupScenes() {
   if (reduceMotion) {
-    setupStatic();
+    $$('[data-count]').forEach((el) => { el.textContent = el.dataset.count; });
+    gsap.set('.statement-text .w, .process-progress i', { opacity: 1, scaleX: 1 });
+    setupNavTheme();
     return;
   }
 
-  // Hero recedes as you scroll away
+  // Hero recedes as you leave it
   gsap.to('.hero-content', {
     yPercent: -18, opacity: 0, scale: 0.96, ease: 'none',
     scrollTrigger: { trigger: '.hero', start: 'top top', end: 'bottom top', scrub: true },
@@ -114,151 +168,124 @@ function setupScroll() {
 
   // Headings rise line by line
   $$('.reveal').forEach((el) => {
+    if (el.closest('.col-intro')) return; // handled with the collection
     SplitText.create(el, {
       type: 'lines', mask: 'lines', linesClass: 'split-line', autoSplit: true,
       onSplit: (self) => gsap.from(self.lines, {
-        yPercent: 105, duration: 1.4, ease: 'expo.out', stagger: 0.1,
-        scrollTrigger: { trigger: el, start: 'top 85%' },
+        yPercent: 105, duration: 1.3, ease: 'expo.out', stagger: 0.09,
+        scrollTrigger: { trigger: el.closest('[data-screen]'), start: 'top 62%', once: true },
       }),
     });
   });
 
-  // Leads, eyebrows fade up
-  $$('.section-head .lead, .bespoke-copy .lead, .contact-copy .lead, .col-intro .lead, .section-head .eyebrow, .bespoke-copy .eyebrow, .contact-copy .eyebrow, .process-head .eyebrow, .statement .eyebrow').forEach((el) => {
-    gsap.from(el, { y: 30, opacity: 0, duration: 1.4, ease: 'expo.out', scrollTrigger: { trigger: el, start: 'top 90%' } });
+  // Supporting copy fades up a beat later
+  $$('[data-screen]').forEach((screen) => {
+    const bits = $$(':scope .eyebrow, :scope .lead', screen).filter((b) => !b.closest('.hero, .col-intro, .studio-panel'));
+    if (!bits.length) return;
+    gsap.from(bits, { y: 24, opacity: 0, duration: 1.2, ease: 'expo.out', stagger: 0.08, delay: 0.15, scrollTrigger: { trigger: screen, start: 'top 62%', once: true } });
   });
 
-  // Statement: words light up as you read
+  // Statement: words light up as it arrives
   const st = $('[data-words]');
   SplitText.create(st, { type: 'words', wordsClass: 'w' });
-  gsap.to(st.querySelectorAll('.w'), {
-    opacity: 1, stagger: 0.1, ease: 'none',
-    scrollTrigger: { trigger: st, start: 'top 75%', end: 'bottom 45%', scrub: 0.6 },
-  });
+  onArrive('.statement', () => gsap.to(st.querySelectorAll('.w'), { opacity: 1, duration: 0.9, ease: 'power2.out', stagger: 0.045, delay: 0.25 }));
 
   const mm = gsap.matchMedia();
 
-  // Collection: pinned horizontal journey on wide screens
+  // Collection: pinned horizontal journey; one snap stop per panel
   mm.add('(min-width: 861px) and (min-height: 600px)', () => {
     const track = $('.collection-track');
     const distance = () => track.scrollWidth - innerWidth;
-    const scroller = gsap.to(track, {
+    colScroll = gsap.to(track, {
       x: () => -distance(), ease: 'none',
-      scrollTrigger: {
-        trigger: '.collection', start: 'top top', end: () => `+=${distance()}`,
-        pin: true, scrub: 1, invalidateOnRefresh: true, anticipatePin: 1,
-      },
+      scrollTrigger: { trigger: '.collection', start: 'top top', end: () => `+=${distance()}`, pin: true, scrub: true, invalidateOnRefresh: true },
     });
+    introReveal();
     $$('.tier').forEach((tier) => {
-      const towels = tier.querySelectorAll('.towel');
-      gsap.timeline({
-        scrollTrigger: { trigger: tier, containerAnimation: scroller, start: 'left 75%', toggleActions: 'play none none reverse' },
-      })
-        .from(towels, { y: -160, opacity: 0, duration: 1.1, ease: 'bounce.out', stagger: 0.14 })
+      gsap.timeline({ scrollTrigger: { trigger: tier, containerAnimation: colScroll, start: 'left 60%', once: true } })
+        .from(tier.querySelectorAll('.towel'), { y: -160, opacity: 0, duration: 1.1, ease: 'bounce.out', stagger: 0.12 })
         .from(tier.querySelector('.towel-shadow'), { opacity: 0, scale: 0.4, transformOrigin: '50% 50%', duration: 1 }, 0)
         .from(tier.querySelectorAll('.tier-copy > *, .tier-specs li'), { x: 60, opacity: 0, duration: 1.2, ease: 'expo.out', stagger: 0.06 }, 0.1);
-      gsap.fromTo(tier.querySelector('.tier-visual'), { xPercent: 8 }, {
-        xPercent: -8, ease: 'none',
-        scrollTrigger: { trigger: tier, containerAnimation: scroller, start: 'left right', end: 'right left', scrub: true },
-      });
     });
+    return () => { colScroll = null; };
   });
   mm.add('(max-width: 860px), (max-height: 599px)', () => {
+    introReveal();
     $$('.tier').forEach((tier) => {
-      gsap.from(tier.querySelectorAll('.towel'), {
-        y: -120, opacity: 0, duration: 1.1, ease: 'bounce.out', stagger: 0.14,
-        scrollTrigger: { trigger: tier, start: 'top 70%' },
-      });
-      gsap.from(tier.querySelectorAll('.tier-copy > *'), {
-        y: 40, opacity: 0, duration: 1.2, ease: 'expo.out', stagger: 0.06,
-        scrollTrigger: { trigger: tier.querySelector('.tier-copy'), start: 'top 85%' },
-      });
+      gsap.timeline({ scrollTrigger: { trigger: tier, start: 'top 62%', once: true } })
+        .from(tier.querySelectorAll('.towel'), { y: -110, opacity: 0, duration: 1.1, ease: 'bounce.out', stagger: 0.12 })
+        .from(tier.querySelectorAll('.tier-copy > *'), { y: 30, opacity: 0, duration: 1.1, ease: 'expo.out', stagger: 0.06 }, 0.15);
     });
   });
 
-  // Range cards
-  gsap.from('.range-card', {
-    y: 80, opacity: 0, duration: 1.3, ease: 'expo.out', stagger: { each: 0.08, grid: 'auto', from: 'start' },
-    scrollTrigger: { trigger: '.range-grid', start: 'top 80%' },
-  });
-  // clip-path, not transforms: the shapes are centred with CSS translate
-  gsap.from('.rc-shape', {
-    clipPath: 'inset(0 0 100% 0)', duration: 1.6, ease: 'expo.out', stagger: 0.08,
-    scrollTrigger: { trigger: '.range-grid', start: 'top 75%' },
+  function introReveal() {
+    const intro = $('.col-intro');
+    const tl = gsap.timeline({ paused: true });
+    SplitText.create($('.reveal', intro), {
+      type: 'lines', mask: 'lines', linesClass: 'split-line',
+      onSplit: (self) => tl.from(self.lines, { yPercent: 105, duration: 1.3, ease: 'expo.out', stagger: 0.09 }, 0),
+    });
+    tl.from($$('.eyebrow, .lead, .col-hint', intro), { y: 24, opacity: 0, duration: 1.2, ease: 'expo.out', stagger: 0.08 }, 0.15);
+    onArrive(intro, () => tl.play());
+  }
+
+  // Range
+  onArrive('.range', () => {
+    gsap.from('.range-card', { y: 50, opacity: 0, duration: 1.2, ease: 'expo.out', stagger: 0.06, delay: 0.1 });
+    gsap.from('.rc-shape', { clipPath: 'inset(0 0 100% 0)', duration: 1.5, ease: 'expo.out', stagger: 0.06, delay: 0.25 });
   });
 
-  // GSM block
-  gsap.from('.gsm-pile', { opacity: 0, scaleX: 0.6, duration: 1.6, ease: 'expo.out', scrollTrigger: { trigger: '.gsm', start: 'top 75%' } });
-  gsap.from('.gsm-readout > *', { y: 40, opacity: 0, duration: 1.3, ease: 'expo.out', stagger: 0.1, scrollTrigger: { trigger: '.gsm', start: 'top 80%' } });
+  // Craft
+  onArrive('.craft', () => {
+    gsap.from('.gsm-readout > *', { y: 36, opacity: 0, duration: 1.2, ease: 'expo.out', stagger: 0.1, delay: 0.2 });
+    gsap.from('.gsm-pile', { opacity: 0, scaleX: 0.6, duration: 1.5, ease: 'expo.out', delay: 0.3 });
+    gsap.from('.gsm-control', { opacity: 0, y: 20, duration: 1.2, ease: 'expo.out', delay: 0.45 });
+  });
 
-  // Counters
-  $$('[data-count]').forEach((el) => {
-    const obj = { v: 0 };
-    gsap.to(obj, {
-      v: +el.dataset.count, duration: 2, ease: 'power3.out',
-      onUpdate: () => { el.textContent = Math.round(obj.v); },
-      scrollTrigger: { trigger: el, start: 'top 88%' },
+  // Numbers
+  onArrive('.specs', () => {
+    gsap.from('.spec', { y: 50, opacity: 0, duration: 1.2, ease: 'expo.out', stagger: 0.1, delay: 0.1 });
+    $$('[data-count]').forEach((el, i) => {
+      const obj = { v: 0 };
+      gsap.to(obj, { v: +el.dataset.count, duration: 1.8, delay: 0.2 + i * 0.1, ease: 'power3.out', onUpdate: () => { el.textContent = Math.round(obj.v); } });
     });
   });
-  gsap.from('.spec', { y: 50, opacity: 0, duration: 1.3, ease: 'expo.out', stagger: 0.1, scrollTrigger: { trigger: '.craft-specs', start: 'top 85%' } });
 
   // Bespoke
-  gsap.from('.towel-hang', {
-    rotateX: -35, y: 120, opacity: 0, duration: 2, ease: 'expo.out',
-    scrollTrigger: { trigger: '.bespoke-visual', start: 'top 80%' },
+  onArrive('.bespoke', () => gsap.from('.bespoke-list li', { y: 36, opacity: 0, duration: 1.2, ease: 'expo.out', stagger: 0.08, delay: 0.35 }));
+  onArrive('.studio-screen', () => {
+    gsap.from('.towel-hang', { rotateX: -35, y: 80, opacity: 0, duration: 1.8, ease: 'expo.out', delay: 0.1 });
+    gsap.from('.studio-panel > *, .studio > *', { y: 26, opacity: 0, duration: 1.1, ease: 'expo.out', stagger: 0.06, delay: 0.25 });
   });
-  gsap.from('.studio > *', { y: 30, opacity: 0, duration: 1.2, ease: 'expo.out', stagger: 0.08, scrollTrigger: { trigger: '.studio', start: 'top 85%' } });
-  gsap.from('.bespoke-list li', { y: 40, opacity: 0, duration: 1.2, ease: 'expo.out', stagger: 0.08, scrollTrigger: { trigger: '.bespoke-list', start: 'top 90%' } });
 
   // Promise
-  $$('.promise-item').forEach((el, i) => {
-    gsap.from(el, { y: 60, opacity: 0, duration: 1.4, ease: 'expo.out', delay: (i % 2) * 0.12, scrollTrigger: { trigger: el, start: 'top 88%' } });
-  });
-  gsap.fromTo('.marquee-track', { x: 0 }, {
-    xPercent: -8, ease: 'none',
-    scrollTrigger: { trigger: '.marquee', start: 'top bottom', end: 'bottom top', scrub: true },
-  });
+  onArrive('.promise', () => gsap.from('.promise-item', { y: 40, opacity: 0, duration: 1.2, ease: 'expo.out', stagger: 0.08, delay: 0.3 }));
 
-  // Process: each step lights up as it crosses centre
-  $$('.step').forEach((step) => {
-    ScrollTrigger.create({ trigger: step, start: 'top 60%', end: 'bottom 40%', toggleClass: 'is-active' });
-  });
-  gsap.to('.process-progress i', {
-    scaleX: 1, ease: 'none',
-    scrollTrigger: { trigger: '.process-steps', start: 'top 60%', end: 'bottom 60%', scrub: true },
+  // Process: the line draws across as each step appears
+  onArrive('.process', () => {
+    gsap.timeline({ delay: 0.3 })
+      .to('.process-progress i', { scaleX: 1, duration: 1.8, ease: 'power2.inOut' })
+      .from('.step', { y: 30, opacity: 0, duration: 1, ease: 'expo.out', stagger: 0.32 }, 0);
   });
 
   // Contact
-  gsap.from('.enquiry', { y: 80, opacity: 0, duration: 1.6, ease: 'expo.out', scrollTrigger: { trigger: '.enquiry', start: 'top 85%' } });
-  gsap.from('.cd-link', { y: 30, opacity: 0, duration: 1.2, ease: 'expo.out', stagger: 0.1, scrollTrigger: { trigger: '.contact-direct', start: 'top 92%' } });
+  onArrive('.contact', () => gsap.from('.cd-link, .contact-next', { y: 26, opacity: 0, duration: 1.1, ease: 'expo.out', stagger: 0.08, delay: 0.4 }));
+  onArrive('.enquire', () => gsap.from('.enquiry', { y: 60, opacity: 0, duration: 1.4, ease: 'expo.out', delay: 0.1 }));
 
   // Footer
-  gsap.from('.footer-big', {
-    yPercent: 40, opacity: 0, letterSpacing: '.3em', duration: 2, ease: 'expo.out',
-    scrollTrigger: { trigger: '.footer', start: 'top 80%' },
+  onArrive('.footer', () => {
+    gsap.from('.footer-big', { yPercent: 30, opacity: 0, letterSpacing: '.3em', duration: 1.8, ease: 'expo.out', delay: 0.1 });
+    gsap.from('.footer-mark', { rotate: -90, scale: 0.6, opacity: 0, duration: 1.6, ease: 'expo.out' });
   });
-  gsap.from('.footer-mark', { rotate: -90, scale: 0.6, opacity: 0, duration: 1.8, ease: 'expo.out', scrollTrigger: { trigger: '.footer', start: 'top 85%' } });
 
-  setupNav();
-}
-
-function setupStatic() {
-  $$('[data-count]').forEach((el) => { el.textContent = el.dataset.count; });
-  $$('.step').forEach((s) => s.classList.add('is-active'));
-  $$('.statement-text').forEach((el) => { el.style.opacity = 1; });
-  setupNav();
+  // Last, so its positions account for the pinned collection above
+  setupNavTheme();
 }
 
 // ---------- Nav ----------
-function setupNav() {
+function setupNavTheme() {
   const nav = $('.nav');
-  let last = 0;
-  lenis.on('scroll', ({ scroll }) => {
-    nav.classList.toggle('is-scrolled', scroll > 40);
-    const menuOpen = $('.menu').classList.contains('is-open');
-    nav.classList.toggle('is-hidden', !menuOpen && scroll > last && scroll > innerHeight * 0.8);
-    last = scroll;
-  });
+  ScrollTrigger.create({ start: 40, end: 'max', onToggle: (self) => nav.classList.toggle('is-scrolled', self.isActive) });
   $$('[data-theme]').forEach((sec) => {
     ScrollTrigger.create({
       trigger: sec, start: 'top 40px', end: 'bottom 40px',
@@ -271,27 +298,33 @@ const toggle = $('.nav-toggle');
 const menu = $('.menu');
 function closeMenu() {
   if (!menu.classList.contains('is-open')) return;
-  lenis.start();
   menu.classList.remove('is-open');
   menu.setAttribute('aria-hidden', 'true');
   toggle.setAttribute('aria-expanded', 'false');
+  snapper.enable();
 }
 toggle.addEventListener('click', () => {
-  const open = !menu.classList.contains('is-open');
-  menu.classList.toggle('is-open', open);
-  menu.setAttribute('aria-hidden', String(!open));
-  toggle.setAttribute('aria-expanded', String(open));
-  $('.nav').classList.toggle('is-light', false);
-  if (open) {
-    lenis.stop();
-    gsap.fromTo('.menu a', { yPercent: 100, opacity: 0 }, { yPercent: 0, opacity: 1, duration: 1, ease: 'expo.out', stagger: 0.05, delay: 0.25 });
-  } else {
-    lenis.start();
-  }
+  if (menu.classList.contains('is-open')) { closeMenu(); return; }
+  menu.classList.add('is-open');
+  menu.setAttribute('aria-hidden', 'false');
+  toggle.setAttribute('aria-expanded', 'true');
+  snapper.disable();
+  gsap.fromTo('.menu nav a, .menu-cta', { yPercent: 60, opacity: 0 }, { yPercent: 0, opacity: 1, duration: 1, ease: 'expo.out', stagger: 0.05, delay: 0.25 });
+});
+
+// Keep the current screen in place when the window changes size.
+let resizeTimer;
+window.addEventListener('resize', () => {
+  clearTimeout(resizeTimer);
+  resizeTimer = setTimeout(() => {
+    if (document.activeElement?.matches?.('input, textarea, select')) return; // on-screen keyboard
+    ScrollTrigger.refresh();
+  }, 200);
 });
 
 // ---------- GSM explorer ----------
 const gsmInput = $('.gsm-control input');
+const pileSvg = $('.gsm-pile');
 const pileTop = $('.pile-top');
 const pileBot = $('.pile-bot');
 const tiers = [
@@ -302,7 +335,6 @@ const tiers = [
   { max: 800, name: 'Reserve', use: 'Suites, spas and private villas. Deep, heavy, unforgettable.' },
 ];
 const gsmState = { v: 600 };
-const pileSvg = $('.gsm-pile');
 let pileW = 600;
 function sizePile() {
   pileW = Math.max(280, Math.round(pileSvg.clientWidth)) || 600;
@@ -412,9 +444,11 @@ if (finePointer && !reduceMotion) {
 // ---------- Contact ----------
 $('[data-contact-label="phone"]').textContent = CONTACT.phoneLabel;
 $('[data-contact-label="email"]').textContent = CONTACT.email;
-$('[data-contact="whatsapp"]').href = `https://wa.me/${CONTACT.whatsapp}`;
+const wa = $('[data-contact="whatsapp"]');
+wa.href = `https://wa.me/${CONTACT.whatsapp}`;
+wa.target = '_blank';
+wa.rel = 'noopener';
 $('[data-contact="email"]').href = `mailto:${CONTACT.email}`;
-$$('[data-contact]').forEach((a) => { if (a.dataset.contact === 'whatsapp') { a.target = '_blank'; a.rel = 'noopener'; } });
 
 const form = $('.enquiry');
 form.addEventListener('submit', (e) => {
@@ -448,3 +482,6 @@ form.addEventListener('submit', (e) => {
   }
   note.textContent = 'Thank you — we usually reply within a day.';
 });
+
+// Dev-only handle for automated checks
+if (import.meta.env.DEV) window.__snap = snapper;
