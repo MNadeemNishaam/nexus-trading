@@ -54,7 +54,7 @@ window.addEventListener('resize', () => {
 window.scrollTo(0, 0);
 
 // ---------- Logos ----------
-$('[data-logo="stroke"]').innerHTML = monogram({ stroke: true });
+$('[data-logo="stroke"]').innerHTML = `${monogram()}<i class="loader-shine"></i>`;
 $('[data-logo="wordmark"]').innerHTML = wordmark();
 $('[data-logo="footer"]').innerHTML = monogram();
 $('[data-year]').textContent = new Date().getFullYear();
@@ -112,11 +112,13 @@ function intro() {
     return;
   }
   gsap.set(['.hero-sub', '.hero-cta'], { y: 24 });
-  tl.to('.loader-mark .mono-stroke path', { strokeDashoffset: 0, duration: 1.6, ease: 'power2.inOut', stagger: 0.15 })
+  // The mark rises into focus, then a band of light sweeps across the gold
+  tl.fromTo('.loader-mark .monogram',
+      { clipPath: 'inset(100% 0% 0% 0%)', filter: 'blur(10px)', scale: 0.9, y: 16 },
+      { clipPath: 'inset(0% 0% 0% 0%)', filter: 'blur(0px)', scale: 1, y: 0, duration: 1.6, ease: 'power3.out' })
     .to('.loader-bar i', { scaleX: 1, duration: 1.8, ease: 'power3.inOut' }, 0)
     .to('.loader-word span', { y: 0, duration: 1, stagger: 0.06 }, 0.3)
-    .to('.loader-mark .mono-fill', { opacity: 1, duration: 0.8, ease: 'power2.out' }, 1.3)
-    .to('.loader-mark .mono-stroke', { opacity: 0, duration: 0.6 }, 1.5)
+    .fromTo('.loader-shine', { backgroundPosition: '160% 0' }, { backgroundPosition: '-60% 0', duration: 1.3, ease: 'power2.inOut' }, 1.05)
     .to('.loader-inner', { scale: 0.92, opacity: 0, duration: 0.8, ease: 'power3.in' }, 2.3)
     .to('.loader', { clipPath: 'inset(0 0 100% 0)', duration: 1.2, ease: 'expo.inOut' }, 2.7)
     .set('.loader', { display: 'none' })

@@ -129,9 +129,14 @@ html.sh-land .screen { height: auto; min-height: var(--screen-h, 100svh); overfl
 /* ---------- Loader ---------- */
 .loader { position: fixed; inset: 0; z-index: 100; background: var(--ink); display: grid; place-items: center; }
 .loader-inner { display: grid; justify-items: center; gap: 26px; }
-.loader-mark .monogram { width: 120px; height: 120px; }
-.loader-mark .mono-fill { opacity: 0; }
-.loader-mark .mono-stroke path { stroke-dasharray: 900; stroke-dashoffset: 900; }
+.loader-mark { position: relative; width: 120px; height: 120px; }
+.loader-mark .monogram { width: 100%; height: 100%; clip-path: inset(100% 0 0 0); }
+/* light sweeping across the gold, masked to the shape of the mark */
+.loader-shine {
+  position: absolute; inset: 0; pointer-events: none; mix-blend-mode: screen;
+  background: linear-gradient(105deg, transparent 38%, rgba(255, 246, 220, .85) 50%, transparent 62%) 160% 0 / 250% 100% no-repeat;
+  -webkit-mask: url(/logo-mark.png) center / contain no-repeat; mask: url(/logo-mark.png) center / contain no-repeat;
+}
 .loader-word { display: flex; gap: .5em; letter-spacing: .1em; font-size: 15px; overflow: hidden; }
 .loader-word span { display: inline-block; transform: translateY(110%); }
 .loader-bar { width: 160px; height: 1px; background: rgba(212, 176, 106, .2); overflow: hidden; }
@@ -152,7 +157,8 @@ html.sh-land .screen { height: auto; min-height: var(--screen-h, 100svh); overfl
 
 /* ---------- Logo ---------- */
 .wordmark { display: inline-flex; align-items: center; gap: 12px; }
-.wordmark .monogram { width: 38px; height: 38px; }
+.monogram { display: block; object-fit: contain; user-select: none; -webkit-user-drag: none; }
+.wordmark .monogram { width: 40px; height: 40px; filter: drop-shadow(0 1px 1px rgba(0,0,0,.25)); }
 .wordmark-text { display: grid; line-height: 1; }
 .wm-name { font-weight: 300; font-size: 17px; letter-spacing: .32em; }
 .wm-sub { font-weight: 400; font-size: 8.5px; letter-spacing: .62em; color: var(--gold); margin-top: 5px; }
@@ -185,7 +191,7 @@ html.sh-land .screen { height: auto; min-height: var(--screen-h, 100svh); overfl
 @media (max-width: 960px) {
   .nav-links, .nav > .btn { display: none; }
   .nav-toggle { display: block; }
-  .wordmark .monogram { width: 32px; height: 32px; }
+  .wordmark .monogram { width: 34px; height: 34px; }
   .wm-name { font-size: 15px; }
 }
 
