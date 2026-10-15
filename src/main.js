@@ -25,6 +25,32 @@ const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
 
 if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
+
+// ---------- Screen height ----------
+// Each section is one screen tall. Measure that once and only re-measure when
+// the width changes (rotation, window resize) — never for the on-screen
+// keyboard or a hiding address bar, which would make the page jump mid-typing.
+const typing = () => document.activeElement?.matches?.('input:not([type="range"]):not([type="checkbox"]), textarea, select');
+let screenW = 0;
+function measureScreen(force) {
+  const w = innerWidth;
+  const h = innerHeight;
+  if (!force && (w === screenW || typing())) return false;
+  screenW = w;
+  const root = document.documentElement;
+  root.style.setProperty('--screen-h', `${Math.round(h)}px`);
+  root.classList.toggle('sh-700', h <= 700);
+  root.classList.toggle('sh-600', h < 600);
+  root.classList.toggle('sh-land', h <= 520 && w > h);
+  return true;
+}
+measureScreen(true);
+// Desktop windows resize freely; phones only on rotation.
+const touchDevice = matchMedia('(hover: none) and (pointer: coarse)').matches;
+window.addEventListener('resize', () => {
+  if (!touchDevice) { measureScreen(true); return; }
+  measureScreen(false);
+});
 window.scrollTo(0, 0);
 
 // ---------- Logos ----------
@@ -293,10 +319,14 @@ toggle.addEventListener('click', () => {
 
 // Keep the current screen in place when the window changes size.
 let resizeTimer;
+let lastW = innerWidth;
 window.addEventListener('resize', () => {
   clearTimeout(resizeTimer);
   resizeTimer = setTimeout(() => {
-    if (document.activeElement?.matches?.('input, textarea, select')) return; // on-screen keyboard
+    // On phones only a width change (rotation) is a real resize; height-only
+    // changes are the keyboard or the address bar.
+    if (touchDevice && (innerWidth === lastW || typing())) return;
+    lastW = innerWidth;
     ScrollTrigger.refresh();
   }, 200);
 });
