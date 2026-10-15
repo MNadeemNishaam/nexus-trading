@@ -4,7 +4,7 @@ import { SplitText } from 'gsap/SplitText';
 import { monogram, wordmark } from './logo.js';
 import { initFabric } from './fabric.js';
 import { towelStack, towelFace, pilePath } from './towel.js';
-import { createSnapper } from './snap.js';
+import Lenis from 'lenis';
 
 gsap.registerPlugin(ScrollTrigger, SplitText);
 // Mobile browsers resize the viewport as the address bar hides; don't re-layout for that.
@@ -48,68 +48,35 @@ $$('[data-stack]').forEach((el) => {
 });
 $('[data-towel-face]').innerHTML = towelFace();
 
-// ---------- Screen snapping ----------
-const colPanels = $$('.col-panel');
 let colScroll = null; // the pinned horizontal collection, when active
 
-function getStops() {
-  return $$('[data-screen]').map((el) => {
-    const k = colPanels.indexOf(el);
-    if (k >= 0 && colScroll) {
-      const st = colScroll.scrollTrigger;
-      return { el, y: st.start + ((st.end - st.start) * k) / (colPanels.length - 1) };
-    }
-    return { el, y: el.getBoundingClientRect().top + scrollY };
-  }).flatMap((s) => {
-    // A screen taller than the viewport (very short landscape phones) gets
-    // extra stops so nothing in it is skipped.
-    const extra = s.el.offsetHeight - innerHeight;
-    if (extra <= 8 || colPanels.includes(s.el)) return [s];
-    const out = [s];
-    for (let d = innerHeight * 0.8; d < extra; d += innerHeight * 0.8) out.push({ el: s.el, y: s.y + d });
-    out.push({ el: s.el, y: s.y + extra });
-    return out;
-  });
-}
-
-const navLinks = $$('.nav-links a');
-const pager = $('.pager');
-const snapper = createSnapper({
-  getStops,
-  reduceMotion,
-  onChange: (i, el) => {
-    $$('li', pager).forEach((li, j) => li.classList.toggle('on', j === i));
-    pager.classList.toggle('is-visible', i > 0);
-    const section = el?.closest('[id]');
-    navLinks.forEach((a) => a.classList.toggle('is-current', !!section && a.getAttribute('href') === `#${section.id}`));
-  },
+// ---------- Smooth, natural scrolling ----------
+// Wheel scrolling glides; trackpads and touch screens keep their native feel.
+const lenis = new Lenis({
+  lerp: 0.11,
+  wheelMultiplier: 0.9,
+  smoothWheel: !reduceMotion,
+  syncTouch: false,
 });
-
-function buildPager() {
-  $('ol', pager).innerHTML = snapper.stops.map((_, i) => `<li class="${i === snapper.index ? 'on' : ''}"></li>`).join('');
-}
-
-ScrollTrigger.addEventListener('refresh', () => { snapper.realign(); buildPager(); });
+lenis.stop();
+lenis.on('scroll', ScrollTrigger.update);
+gsap.ticker.add((t) => lenis.raf(t * 1000));
+gsap.ticker.lagSmoothing(0);
 
 $$('a[href^="#"]').forEach((a) => a.addEventListener('click', (e) => {
   const href = a.getAttribute('href');
   if (!href.startsWith('#') || href.length < 2) return; // real links (WhatsApp, email) pass through
   e.preventDefault();
   closeMenu();
-  if (href === '#top') { snapper.goTo(0); return; }
-  const target = $(href);
-  if (!target) return;
-  const i = snapper.indexOf(target);
-  if (i >= 0) snapper.goTo(i);
+  const target = href === '#top' ? 0 : $(href)?.closest('.pin-spacer') || $(href);
+  if (target !== null) lenis.scrollTo(target, { duration: 1.4, easing: (t) => 1 - Math.pow(1 - t, 4) });
 }));
 
 // ---------- Loader → intro ----------
 function intro() {
   const ready = () => {
     document.body.classList.remove('is-loading');
-    snapper.refresh();
-    buildPager();
-    snapper.enable();
+    lenis.start();
   };
   const tl = gsap.timeline({ defaults: { ease: 'expo.out' }, onComplete: ready });
   if (reduceMotion) {
@@ -144,8 +111,8 @@ document.fonts.ready.then(() => {
 });
 
 // ---------- Scenes ----------
-// Each screen plays its entrance as it arrives, so animations land with the snap.
-const onArrive = (trigger, fn, start = 'top 62%') =>
+// Each screen plays its entrance as it scrolls into view.
+const onArrive = (trigger, fn, start = 'top 70%') =>
   ScrollTrigger.create({ trigger, start, once: true, onEnter: fn });
 
 function setupScenes() {
@@ -173,7 +140,7 @@ function setupScenes() {
       type: 'lines', mask: 'lines', linesClass: 'split-line', autoSplit: true,
       onSplit: (self) => gsap.from(self.lines, {
         yPercent: 105, duration: 1.3, ease: 'expo.out', stagger: 0.09,
-        scrollTrigger: { trigger: el.closest('[data-screen]'), start: 'top 62%', once: true },
+        scrollTrigger: { trigger: el, start: 'top 88%', once: true },
       }),
     });
   });
@@ -182,17 +149,20 @@ function setupScenes() {
   $$('[data-screen]').forEach((screen) => {
     const bits = $$(':scope .eyebrow, :scope .lead', screen).filter((b) => !b.closest('.hero, .col-intro, .studio-panel'));
     if (!bits.length) return;
-    gsap.from(bits, { y: 24, opacity: 0, duration: 1.2, ease: 'expo.out', stagger: 0.08, delay: 0.15, scrollTrigger: { trigger: screen, start: 'top 62%', once: true } });
+    gsap.from(bits, { y: 24, opacity: 0, duration: 1.2, ease: 'expo.out', stagger: 0.08, delay: 0.15, scrollTrigger: { trigger: screen, start: 'top 70%', once: true } });
   });
 
   // Statement: words light up as it arrives
   const st = $('[data-words]');
   SplitText.create(st, { type: 'words', wordsClass: 'w' });
-  onArrive('.statement', () => gsap.to(st.querySelectorAll('.w'), { opacity: 1, duration: 0.9, ease: 'power2.out', stagger: 0.045, delay: 0.25 }));
+  gsap.to(st.querySelectorAll('.w'), {
+    opacity: 1, stagger: 0.1, ease: 'none',
+    scrollTrigger: { trigger: '.statement', start: 'top 70%', end: 'top 5%', scrub: 0.5 },
+  });
 
   const mm = gsap.matchMedia();
 
-  // Collection: pinned horizontal journey; one snap stop per panel
+  // Collection: pinned horizontal journey, driven by the scroll
   mm.add('(min-width: 861px) and (min-height: 600px)', () => {
     const track = $('.collection-track');
     const distance = () => track.scrollWidth - innerWidth;
@@ -200,9 +170,13 @@ function setupScenes() {
       x: () => -distance(), ease: 'none',
       scrollTrigger: { trigger: '.collection', start: 'top top', end: () => `+=${distance()}`, pin: true, scrub: true, invalidateOnRefresh: true },
     });
+    $$('.tier-visual').forEach((v) => gsap.fromTo(v, { xPercent: 8 }, {
+      xPercent: -8, ease: 'none',
+      scrollTrigger: { trigger: v.closest('.tier'), containerAnimation: colScroll, start: 'left right', end: 'right left', scrub: true },
+    }));
     introReveal();
     $$('.tier').forEach((tier) => {
-      gsap.timeline({ scrollTrigger: { trigger: tier, containerAnimation: colScroll, start: 'left 60%', once: true } })
+      gsap.timeline({ scrollTrigger: { trigger: tier, containerAnimation: colScroll, start: 'left 70%', once: true } })
         .from(tier.querySelectorAll('.towel'), { y: -160, opacity: 0, duration: 1.1, ease: 'bounce.out', stagger: 0.12 })
         .from(tier.querySelector('.towel-shadow'), { opacity: 0, scale: 0.4, transformOrigin: '50% 50%', duration: 1 }, 0)
         .from(tier.querySelectorAll('.tier-copy > *, .tier-specs li'), { x: 60, opacity: 0, duration: 1.2, ease: 'expo.out', stagger: 0.06 }, 0.1);
@@ -212,7 +186,7 @@ function setupScenes() {
   mm.add('(max-width: 860px), (max-height: 599px)', () => {
     introReveal();
     $$('.tier').forEach((tier) => {
-      gsap.timeline({ scrollTrigger: { trigger: tier, start: 'top 62%', once: true } })
+      gsap.timeline({ scrollTrigger: { trigger: tier, start: 'top 72%', once: true } })
         .from(tier.querySelectorAll('.towel'), { y: -110, opacity: 0, duration: 1.1, ease: 'bounce.out', stagger: 0.12 })
         .from(tier.querySelectorAll('.tier-copy > *'), { y: 30, opacity: 0, duration: 1.1, ease: 'expo.out', stagger: 0.06 }, 0.15);
     });
@@ -285,6 +259,11 @@ function setupScenes() {
 // ---------- Nav ----------
 function setupNavTheme() {
   const nav = $('.nav');
+  $$('.nav-links a').forEach((a) => {
+    const el = $(a.getAttribute('href'));
+    const sec = el?.closest('.pin-spacer') || el; // pinned sections are measured by their spacer
+    if (sec) ScrollTrigger.create({ trigger: sec, start: 'top 50%', end: 'bottom 50%', toggleClass: { targets: a, className: 'is-current' } });
+  });
   ScrollTrigger.create({ start: 40, end: 'max', onToggle: (self) => nav.classList.toggle('is-scrolled', self.isActive) });
   $$('[data-theme]').forEach((sec) => {
     ScrollTrigger.create({
@@ -301,14 +280,14 @@ function closeMenu() {
   menu.classList.remove('is-open');
   menu.setAttribute('aria-hidden', 'true');
   toggle.setAttribute('aria-expanded', 'false');
-  snapper.enable();
+  lenis.start();
 }
 toggle.addEventListener('click', () => {
   if (menu.classList.contains('is-open')) { closeMenu(); return; }
   menu.classList.add('is-open');
   menu.setAttribute('aria-hidden', 'false');
   toggle.setAttribute('aria-expanded', 'true');
-  snapper.disable();
+  lenis.stop();
   gsap.fromTo('.menu nav a, .menu-cta', { yPercent: 60, opacity: 0 }, { yPercent: 0, opacity: 1, duration: 1, ease: 'expo.out', stagger: 0.05, delay: 0.25 });
 });
 
@@ -482,6 +461,3 @@ form.addEventListener('submit', (e) => {
   }
   note.textContent = 'Thank you — we usually reply within a day.';
 });
-
-// Dev-only handle for automated checks
-if (import.meta.env.DEV) window.__snap = snapper;

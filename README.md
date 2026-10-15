@@ -31,7 +31,6 @@ The enquiry form composes a WhatsApp message or an email from what the visitor t
 - `index.html` — all copy and sections
 - `src/style.css` — colours (tokens at the top), type and layout
 - `src/main.js` — animations, GSM explorer, embroidery studio, form
-- `src/snap.js` — screen-by-screen scrolling (reads wheel, trackpad, touch and keyboard intent)
 - `src/logo.js` — the NX monogram (vector) and wordmark
 - `src/fabric.js` — the WebGL fabric behind the hero
 - `src/towel.js` — the towel illustrations

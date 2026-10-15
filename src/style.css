@@ -28,8 +28,9 @@
 @media (max-width: 960px) { :root { --nav-h: 64px; } }
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-html { -webkit-text-size-adjust: 100%; overflow-x: clip; scrollbar-width: none; overscroll-behavior: none; }
-html::-webkit-scrollbar { display: none; }
+html { -webkit-text-size-adjust: 100%; overflow-x: clip; }
+html.lenis, html.lenis body { height: auto; }
+.lenis.lenis-smooth { scroll-behavior: auto !important; }
 html, body { -webkit-tap-highlight-color: transparent; }
 body {
   background: var(--ink);
@@ -40,7 +41,6 @@ body {
   line-height: 1.55;
   -webkit-font-smoothing: antialiased;
   overflow-x: clip;
-  overscroll-behavior: none;
 }
 body.is-loading { overflow: hidden; }
 a { color: inherit; text-decoration: none; }
@@ -193,14 +193,6 @@ img, svg { display: block; }
 .menu nav { display: grid; gap: 4px; }
 .menu nav a { font-family: var(--serif); font-size: clamp(36px, min(11vw, 7vh), 64px); font-weight: 300; line-height: 1.15; }
 .menu-cta { width: max-content; }
-
-/* ---------- Pager (screen position) ---------- */
-.pager { position: fixed; right: 26px; top: 50%; transform: translateY(-50%); z-index: 40; opacity: 0; transition: opacity .6s; }
-.pager.is-visible { opacity: 1; }
-.pager ol { list-style: none; display: grid; gap: 10px; }
-.pager li { width: 4px; height: 4px; border-radius: 2px; background: var(--gold); opacity: .35; transition: height .5s var(--ease), opacity .5s; }
-.pager li.on { height: 22px; opacity: 1; }
-@media (max-width: 960px) { .pager { display: none; } }
 
 /* ---------- Hero ---------- */
 .hero { background: var(--ink); padding-top: var(--nav-h); }
