@@ -12,9 +12,9 @@ gsap.registerPlugin(ScrollTrigger, SplitText);
 // Contact details — replace these with the real ones before launch.
 // ------------------------------------------------------------------
 const CONTACT = {
-  whatsapp: '94770000000',          // international format, no + or spaces
-  phoneLabel: '+94 77 000 0000',
-  email: 'hello@nexustrading.lk',
+  whatsapp: '94767594282',          // international format, no + or spaces
+  phoneLabel: '+94 76 759 4282',
+  email: 'm.nadeemnishaam@gmail.com',
 };
 
 const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
