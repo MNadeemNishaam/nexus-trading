@@ -34,3 +34,10 @@ The enquiry form composes a WhatsApp message or an email from what the visitor t
 - `src/logo.js` — the NX monogram (vector) and wordmark
 - `src/fabric.js` — the WebGL fabric behind the hero
 - `src/towel.js` — the towel illustrations
+
+## SEO
+
+- Page title, description, canonical URL, sharing tags and structured data (Organization, WebSite, FAQPage) are in the `<head>` of `index.html`. Keep the FAQ structured data in sync with the visible FAQ section.
+- `public/robots.txt` and `public/sitemap.xml` — update `<lastmod>` in the sitemap when the content changes.
+- `public/og-image.jpg` is the preview image shown when the link is shared (1200 × 630).
+- After deploying, submit `https://nexustrading.lk/sitemap.xml` in Google Search Console.

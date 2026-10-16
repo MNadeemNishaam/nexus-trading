@@ -56,7 +56,7 @@ window.scrollTo(0, 0);
 // ---------- Logos ----------
 $('[data-logo="stroke"]').innerHTML = `${monogram()}<i class="loader-shine"></i>`;
 $('[data-logo="wordmark"]').innerHTML = wordmark();
-$('[data-logo="footer"]').innerHTML = monogram();
+$('[data-logo="footer"]').innerHTML = monogram({ alt: 'Nexus Trading' });
 $('[data-year]').textContent = new Date().getFullYear();
 
 // ---------- Fabric ----------
@@ -270,6 +270,9 @@ function setupScenes() {
       .from('.step', { y: 30, opacity: 0, duration: 1, ease: 'expo.out', stagger: 0.32 }, 0);
   });
 
+  // FAQ
+  onArrive('.faq', () => gsap.from('.faq-item', { y: 24, opacity: 0, duration: 1.1, ease: 'expo.out', stagger: 0.07, delay: 0.3 }));
+
   // Contact
   onArrive('.contact', () => gsap.from('.cd-link, .contact-next', { y: 26, opacity: 0, duration: 1.1, ease: 'expo.out', stagger: 0.08, delay: 0.4 }));
   onArrive('.enquire', () => gsap.from('.enquiry', { y: 60, opacity: 0, duration: 1.4, ease: 'expo.out', delay: 0.1 }));
@@ -332,6 +335,12 @@ window.addEventListener('resize', () => {
     ScrollTrigger.refresh();
   }, 200);
 });
+
+// ---------- FAQ ----------
+// One answer open at a time, so the section always fits on one screen.
+$$('.faq-item').forEach((item) => item.addEventListener('toggle', () => {
+  if (item.open) $$('.faq-item').forEach((other) => { if (other !== item) other.open = false; });
+}));
 
 // ---------- GSM explorer ----------
 const gsmInput = $('.gsm-control input');

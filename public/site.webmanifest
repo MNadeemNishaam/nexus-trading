@@ -1,0 +1,12 @@
+{
+  "name": "Nexus Trading — Luxury Hotel Towels, Sri Lanka",
+  "short_name": "Nexus Trading",
+  "start_url": "/",
+  "display": "browser",
+  "background_color": "#12050a",
+  "theme_color": "#12050a",
+  "icons": [
+    { "src": "/apple-touch-icon.png", "sizes": "180x180", "type": "image/png" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}

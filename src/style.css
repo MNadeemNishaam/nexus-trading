@@ -135,7 +135,7 @@ html.sh-land .screen { height: auto; min-height: var(--screen-h, 100svh); overfl
 .loader-shine {
   position: absolute; inset: 0; pointer-events: none; mix-blend-mode: screen;
   background: linear-gradient(105deg, transparent 38%, rgba(255, 246, 220, .85) 50%, transparent 62%) 160% 0 / 250% 100% no-repeat;
-  -webkit-mask: url(/logo-mark.png) center / contain no-repeat; mask: url(/logo-mark.png) center / contain no-repeat;
+  -webkit-mask: url(/logo-mark.webp) center / contain no-repeat; mask: url(/logo-mark.webp) center / contain no-repeat;
 }
 .loader-word { display: flex; gap: .5em; letter-spacing: .1em; font-size: 15px; overflow: hidden; }
 .loader-word span { display: inline-block; transform: translateY(110%); }
@@ -561,4 +561,45 @@ html.sh-600 .promise-item { padding: 7px 0; }
 html.sh-600 .promise-item h3 { font-size: 18px; }
 html.sh-600 .promise .display { font-size: 30px; }
 html.sh-600 .marquee-track span { font-size: 19px; }
+}
+
+/* ---------- SEO-driven additions ---------- */
+/* The hero eyebrow now sits inside the H1 */
+.hero-title .eyebrow { font-family: var(--sans); font-weight: 400; line-height: 1.4; }
+
+/* ---------- FAQ ---------- */
+.faq-grid { display: grid; grid-template-columns: 1fr 1.25fr; gap: clamp(32px, 6vw, 110px); align-items: center; }
+.faq-list { border-top: 1px solid var(--line-l); }
+.faq-item { border-bottom: 1px solid var(--line-l); }
+.faq-item summary {
+  list-style: none; cursor: pointer; display: flex; align-items: center; justify-content: space-between; gap: 20px;
+  padding: clamp(12px, calc(2.2 * var(--vh)), 22px) 0;
+  font-family: var(--serif); font-weight: 400; font-size: clamp(19px, min(1.9vw, calc(3.1 * var(--vh))), 28px); line-height: 1.2;
+}
+.faq-item summary::-webkit-details-marker { display: none; }
+.faq-item summary i { flex: none; width: 14px; height: 14px; position: relative; }
+.faq-item summary i::before, .faq-item summary i::after { content: ''; position: absolute; left: 0; right: 0; top: 50%; height: 1px; background: var(--gold-ink); transition: transform .5s var(--ease); }
+.faq-item summary i::after { transform: rotate(90deg); }
+.faq-item[open] summary i::after { transform: rotate(0deg); }
+.faq-item p { color: var(--muted-l); font-size: clamp(14px, calc(2 * var(--vh)), 17px); line-height: 1.55; max-width: 40em; padding: 0 32px clamp(14px, calc(2.4 * var(--vh)), 24px) 0; }
+.faq-item summary:focus-visible { outline: 1px solid var(--gold-ink); outline-offset: 4px; }
+@media (max-width: 960px) {
+  .faq-grid { grid-template-columns: 1fr; gap: clamp(14px, calc(3 * var(--vh)), 32px); align-items: start; }
+  .faq-head .lead { display: none; }
+  .faq-item summary { font-size: clamp(17px, calc(2.7 * var(--vh)), 22px); }
+  .faq-item p { font-size: 14px; padding-right: 0; }
+}
+html.sh-600 .faq-item summary { padding: 9px 0; font-size: 16px; }
+html.sh-600 .faq-item p { font-size: 13px; line-height: 1.45; padding-bottom: 10px; }
+@media (max-width: 960px) {
+  .faq .display { font-size: clamp(32px, calc(6.4 * var(--vh)), 52px); }
+  .faq-item summary { font-size: clamp(16px, calc(2.4 * var(--vh)), 20px); padding: clamp(9px, calc(1.6 * var(--vh)), 16px) 0; gap: 14px; }
+  .faq-item p { font-size: 13.5px; line-height: 1.5; padding-bottom: clamp(10px, calc(1.6 * var(--vh)), 16px); }
+}
+@media (max-width: 960px) {
+  html.sh-700 .faq-grid { gap: 10px; }
+  html.sh-700 .faq-item summary { font-size: 15.5px; padding: 8px 0; }
+  html.sh-700 .faq-item p { font-size: 12.5px; line-height: 1.45; padding-bottom: 9px; }
+  html.sh-600 .faq .display { font-size: 28px; }
+  html.sh-600 .faq .eyebrow { display: none; }
 }
