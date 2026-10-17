@@ -16,7 +16,7 @@ ScrollTrigger.config({ ignoreMobileResize: true });
 const CONTACT = {
   whatsapp: '94767594282',          // international format, no + or spaces
   phoneLabel: '+94 76 759 4282',
-  email: 'm.nadeemnishaam@gmail.com',
+  email: 'info@nexustrading.lk',
 };
 
 const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
