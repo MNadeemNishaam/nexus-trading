@@ -1,12 +1,8 @@
-// Fonts are served from this site (Latin only) rather than Google's font server,
-// which used to hold up the first paint on phones.
-import '@fontsource/cormorant-garamond/latin-300.css';
+// Fonts are served from this site (Latin only) rather than Google's font server.
+// The four the hero needs are declared in style.css and preloaded in index.html.
 import '@fontsource/cormorant-garamond/latin-400.css';
 import '@fontsource/cormorant-garamond/latin-500.css';
-import '@fontsource/cormorant-garamond/latin-300-italic.css';
 import '@fontsource/cormorant-garamond/latin-400-italic.css';
-import '@fontsource/jost/latin-300.css';
-import '@fontsource/jost/latin-400.css';
 import '@fontsource/jost/latin-500.css';
 import '@fontsource/pinyon-script/latin-400.css';
 import gsap from 'gsap';
@@ -71,7 +67,8 @@ $('[data-logo="footer"]').innerHTML = monogram({ alt: 'Nexus Trading' });
 $('[data-year]').textContent = new Date().getFullYear();
 
 // ---------- Fabric ----------
-const fabric = initFabric($('.hero-canvas'));
+let fabric = null;
+(window.requestIdleCallback || ((f) => setTimeout(f, 300)))(() => { fabric = initFabric($('.hero-canvas')); }, { timeout: 700 });
 
 // ---------- Towel illustrations ----------
 const stacks = {
@@ -116,14 +113,13 @@ function intro() {
     lenis.start();
   };
   const tl = gsap.timeline({ defaults: { ease: 'expo.out' }, onComplete: ready });
-  gsap.set('.hero-content', { visibility: 'visible' }); // fonts are ready by now
   if (reduceMotion) {
+    gsap.set('.hero-content', { visibility: 'visible' });
     gsap.set(['.hero-canvas', '.hero-sub', '.hero-cta', '.hero-eyebrow'], { opacity: 1 });
     gsap.set('.hero-title .line > span', { y: 0 });
     tl.to('.loader', { opacity: 0, duration: 0.4 }).set('.loader', { display: 'none' });
     return;
   }
-  gsap.set(['.hero-sub', '.hero-cta'], { y: 24 });
 
   // The full loader plays once per visit; coming back to the site skips it.
   let seen = false;
@@ -131,7 +127,13 @@ function intro() {
   let t = 0; // when the hero starts revealing
   if (seen) {
     gsap.set('.loader', { display: 'none' });
+    gsap.set(['.hero-sub', '.hero-cta'], { opacity: 0, y: 24 });
   } else {
+    // The hero text is drawn, at full strength, underneath the loader as soon as
+    // its fonts arrive; the loader then lifts like a curtain to reveal it. That
+    // keeps the intro while letting the page's main content count as shown early.
+    gsap.set(['.hero-sub', '.hero-cta'], { y: 36 });
+    heroFonts.then(() => gsap.set('.hero-content', { visibility: 'visible' }));
     // The mark rises into focus, then a band of light sweeps across the gold
     tl.fromTo('.loader-mark .monogram',
         { clipPath: 'inset(100% 0% 0% 0%)', filter: 'blur(10px)', scale: 0.9, y: 16 },
@@ -144,28 +146,43 @@ function intro() {
       .set('.loader', { display: 'none' });
     t = 1.45;
   }
+  // Hold here until the hero's fonts are in (usually long before), then reveal it.
+  tl.addPause(t, () => heroFonts.then(() => { gsap.set('.hero-content', { visibility: 'visible' }); tl.play(); }));
   tl.to('.hero-canvas', { opacity: 1, duration: 2, ease: 'power2.out' }, t)
     .fromTo('.nav', { y: -30, opacity: 0 }, { y: 0, opacity: 1, duration: 1.1 }, t + 0.2)
     .to('.hero-eyebrow', { opacity: 1, duration: 0.9 }, t + 0.15)
     .to('.hero-title .line > span', { y: 0, duration: 1.4, stagger: 0.1 }, t)
-    .to('.hero-sub', { opacity: 1, y: 0, duration: 1.2 }, t + 0.35)
-    .to('.hero-cta', { opacity: 1, y: 0, duration: 1.2 }, t + 0.45)
+    .to('.hero-sub', { opacity: 1, y: 0, duration: 1.3 }, seen ? t + 0.25 : t - 0.15)
+    .to('.hero-cta', { opacity: 1, y: 0, duration: 1.3 }, seen ? t + 0.45 : t - 0.05)
     .from('.hero-scroll', { opacity: 0, duration: 1 }, t + 0.8);
   // Let people move on as soon as the hero headline is up.
   tl.call(ready, null, t + 0.4);
 }
 
-document.fonts.ready.then(() => {
-  setupScenes();
-  intro();
-});
+const heroFonts = Promise.race([
+  Promise.all([
+    document.fonts.load('300 1em "Cormorant Garamond"'),
+    document.fonts.load('italic 300 1em "Cormorant Garamond"'),
+    document.fonts.load('300 1em Jost'),
+    document.fonts.load('400 1em Jost'),
+  ]),
+  new Promise((r) => setTimeout(r, 2500)), // never hold the page hostage to a slow font
+]);
+intro();
+// Scroll scenes split headings into lines, so they need every font measured first.
+// They're below the fold, so they can wait until the browser is idle.
+document.fonts.ready.then(() => (window.requestIdleCallback || ((f) => setTimeout(f, 200)))(() => setupScenes(), { timeout: 1500 }));
 
 // ---------- Scenes ----------
 // Each screen plays its entrance as it scrolls into view.
 const onArrive = (trigger, fn, start = 'top 70%') =>
   ScrollTrigger.create({ trigger, start, once: true, onEnter: fn });
 
-function setupScenes() {
+// Hand control back to the browser between setup steps, so a phone never sees
+// one long frozen moment while every section is prepared.
+const yieldToMain = () => new Promise((r) => (window.scheduler?.yield ? scheduler.yield().then(r) : setTimeout(r, 0)));
+
+async function setupScenes() {
   if (reduceMotion) {
     $$('[data-count]').forEach((el) => { el.textContent = el.dataset.count; });
     gsap.set('.statement-text .w, .process-progress i', { opacity: 1, scaleX: 1 });
@@ -182,10 +199,11 @@ function setupScenes() {
     trigger: '.hero', start: 'top top', end: 'bottom top',
     onUpdate: (self) => { if (fabric) fabric.scroll = self.progress; },
   });
+  await yieldToMain();
 
   // Headings rise line by line
-  $$('.reveal').forEach((el) => {
-    if (el.closest('.col-intro')) return; // handled with the collection
+  for (const el of $$('.reveal')) {
+    if (el.closest('.col-intro')) continue; // handled with the collection
     SplitText.create(el, {
       type: 'lines', mask: 'lines', linesClass: 'split-line', autoSplit: true,
       onSplit: (self) => gsap.from(self.lines, {
@@ -193,7 +211,8 @@ function setupScenes() {
         scrollTrigger: { trigger: el, start: 'top 88%', once: true },
       }),
     });
-  });
+    await yieldToMain();
+  }
 
   // Supporting copy fades up a beat later
   $$('[data-screen]').forEach((screen) => {
@@ -209,6 +228,7 @@ function setupScenes() {
     opacity: 1, stagger: 0.1, ease: 'none',
     scrollTrigger: { trigger: '.statement', start: 'top 70%', end: 'top 5%', scrub: 0.5 },
   });
+  await yieldToMain();
 
   const mm = gsap.matchMedia();
 
@@ -252,6 +272,8 @@ function setupScenes() {
     tl.from($$('.eyebrow, .lead, .col-hint', intro), { y: 24, opacity: 0, duration: 1.2, ease: 'expo.out', stagger: 0.08 }, 0.15);
     onArrive(intro, () => tl.play());
   }
+
+  await yieldToMain();
 
   // Range
   onArrive('.range', () => {
@@ -306,6 +328,7 @@ function setupScenes() {
   });
 
   // Last, so its positions account for the pinned collection above
+  await yieldToMain();
   setupNavTheme();
 }
 
