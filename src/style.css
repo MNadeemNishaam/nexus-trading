@@ -81,7 +81,6 @@ html.sh-land .screen { height: auto; min-height: var(--screen-h, 100svh); overfl
   color: var(--gold); margin-bottom: clamp(12px, calc(2.4 * var(--vh)), 28px);
   display: flex; align-items: center; gap: 14px;
 }
-.eyebrow::before { content: ''; width: 28px; height: 1px; background: currentColor; opacity: .7; }
 .display {
   font-family: var(--serif); font-weight: 300;
   font-size: clamp(36px, min(6.6vw, calc(8.6 * var(--vh))), 108px);
@@ -238,9 +237,9 @@ html.sh-700 .hero-scroll { display: none; }
 .collection-track { display: flex; width: max-content; }
 .col-panel { width: 100vw; flex: 0 0 auto; }
 .col-hint { margin-top: clamp(24px, calc(6 * var(--vh)), 56px); display: flex; align-items: center; gap: 16px; font-size: 11px; letter-spacing: .3em; text-transform: uppercase; color: var(--muted-d); }
-.col-hint i { width: 80px; height: 1px; background: var(--gold); position: relative; overflow: hidden; }
-.col-hint i::after { content: ''; position: absolute; inset: 0; background: var(--ivory); animation: slide 2s var(--ease) infinite; }
-@keyframes slide { from { transform: translateX(-100%); } to { transform: translateX(100%); } }
+.col-hint i { font-style: normal; color: var(--gold); font-size: 16px; letter-spacing: 0; display: inline-block; animation: nudge 1.8s var(--ease) infinite; }
+.col-hint i::after { content: '→'; }
+@keyframes nudge { 0%, 100% { transform: translateX(0); opacity: .6; } 50% { transform: translateX(8px); opacity: 1; } }
 
 .tier-inner { width: 100%; max-width: 1400px; margin: 0 auto; display: flex; align-items: center; gap: clamp(40px, 6vw, 120px); }
 .tier-visual { flex: 1 1 55%; display: grid; place-items: center; position: relative; }
@@ -455,7 +454,11 @@ html.sh-600 .tier-copy { max-width: 560px; }
 .contact-next { margin-top: clamp(24px, calc(5 * var(--vh)), 56px); }
 
 /* ---------- Enquiry form ---------- */
-.enquire { background: radial-gradient(90% 90% at 90% 100%, var(--wine) 0%, var(--ink) 60%); }
+.enquire {
+  background:
+    linear-gradient(180deg, rgba(18, 5, 10, 0) 55%, var(--ink) 100%),
+    radial-gradient(85% 75% at 80% 30%, var(--wine) 0%, var(--ink) 65%);
+}
 .enquire .wrap { max-width: 860px; }
 .enquiry { display: grid; gap: clamp(14px, calc(2.8 * var(--vh)), 30px); padding: clamp(20px, calc(4.4 * var(--vh)), 52px) clamp(20px, 4vw, 52px); border: 1px solid var(--line-d); border-radius: 28px; background: rgba(246,241,232,.025); }
 .enquiry .eyebrow { margin-bottom: 0; }
@@ -484,7 +487,7 @@ html.sh-600 .tier-copy { max-width: 560px; }
 }
 
 /* ---------- Footer ---------- */
-.footer { background: var(--ink); justify-content: space-between; }
+.footer { background: radial-gradient(70% 55% at 50% 62%, rgba(61, 18, 34, .55) 0%, var(--ink) 70%), var(--ink); justify-content: space-between; }
 .footer-main { flex: 1; display: grid; place-content: center; justify-items: center; text-align: center; }
 .footer-mark .monogram { width: clamp(56px, calc(9 * var(--vh)), 90px); height: clamp(56px, calc(9 * var(--vh)), 90px); }
 .footer-big {

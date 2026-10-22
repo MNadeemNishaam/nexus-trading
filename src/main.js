@@ -11,7 +11,7 @@ gsap.registerPlugin(ScrollTrigger, SplitText);
 ScrollTrigger.config({ ignoreMobileResize: true });
 
 // ------------------------------------------------------------------
-// Contact details — replace these with the real ones before launch.
+// Contact details. Replace these with the real ones before launch.
 // ------------------------------------------------------------------
 const CONTACT = {
   whatsapp: '94767594282',          // international format, no + or spaces
@@ -28,7 +28,7 @@ if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
 
 // ---------- Screen height ----------
 // Each section is one screen tall. Measure that once and only re-measure when
-// the width changes (rotation, window resize) — never for the on-screen
+// the width changes (rotation, window resize), never for the on-screen
 // keyboard or a hiding address bar, which would make the page jump mid-typing.
 const typing = () => document.activeElement?.matches?.('input:not([type="range"]):not([type="checkbox"]), textarea, select');
 let screenW = 0;
@@ -496,9 +496,9 @@ form.addEventListener('submit', (e) => {
   ].filter(Boolean).join('\n');
 
   if (via === 'email') {
-    location.href = `mailto:${CONTACT.email}?subject=${encodeURIComponent(`Towel enquiry — ${data.get('property')}`)}&body=${encodeURIComponent(lines)}`;
+    location.href = `mailto:${CONTACT.email}?subject=${encodeURIComponent(`Towel enquiry: ${data.get('property')}`)}&body=${encodeURIComponent(lines)}`;
   } else {
     window.open(`https://wa.me/${CONTACT.whatsapp}?text=${encodeURIComponent(lines)}`, '_blank', 'noopener');
   }
-  note.textContent = 'Thank you — we usually reply within a day.';
+  note.textContent = 'Thank you. We usually reply within a day.';
 });
