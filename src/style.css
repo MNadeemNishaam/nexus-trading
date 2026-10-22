@@ -211,6 +211,8 @@ html.sh-land .screen { height: auto; min-height: var(--screen-h, 100svh); overfl
 .hero-canvas.no-webgl { background: radial-gradient(120% 90% at 30% 30%, var(--wine-2), var(--ink) 70%); opacity: 1; }
 .hero::after { content: ''; position: absolute; inset: 0; background: linear-gradient(180deg, rgba(18,5,10,.15) 0%, rgba(18,5,10,0) 40%, rgba(18,5,10,.85) 100%); pointer-events: none; }
 .hero-content { position: relative; z-index: 2; max-width: 1400px; width: 100%; margin: 0 auto; }
+/* Hidden until the fonts have loaded (main.js reveals it), so the font swap can't shift it */
+.hero-content { visibility: hidden; }
 .hero-title { font-family: var(--serif); font-weight: 300; font-size: clamp(44px, min(10.5vw, calc(13 * var(--vh))), 176px); line-height: .94; letter-spacing: -.025em; }
 .hero-title .line { display: block; overflow: hidden; padding-bottom: .1em; margin-bottom: -.1em; }
 .hero-title .line > span { display: inline-block; transform: translateY(110%); }
@@ -289,7 +291,7 @@ html.sh-600 .tier-copy { max-width: 560px; }
 .range-card::before { content: ''; position: absolute; inset: 0; background: var(--paper); transform: scaleY(0); transform-origin: bottom; transition: transform .7s var(--ease); }
 .range-card:hover::before { transform: scaleY(1); }
 .range-card > * { position: relative; }
-.range-card h4 { font-family: var(--serif); font-weight: 400; font-size: clamp(18px, min(2.2vw, calc(3.4 * var(--vh))), 32px); line-height: 1.1; flex: none; }
+.range-card h3 { font-family: var(--serif); font-weight: 400; font-size: clamp(18px, min(2.2vw, calc(3.4 * var(--vh))), 32px); line-height: 1.1; flex: none; }
 .range-card p { font-size: 12px; letter-spacing: .14em; text-transform: uppercase; color: var(--muted-l); margin-top: 4px; flex: none; }
 .rc-art { flex: 1; min-height: 0; position: relative; container-type: size; margin-bottom: clamp(6px, calc(1.4 * var(--vh)), 16px); }
 /* Drawn to scale: sizes are relative to the tallest piece, so proportions stay true at any size */

@@ -1,3 +1,14 @@
+// Fonts are served from this site (Latin only) rather than Google's font server,
+// which used to hold up the first paint on phones.
+import '@fontsource/cormorant-garamond/latin-300.css';
+import '@fontsource/cormorant-garamond/latin-400.css';
+import '@fontsource/cormorant-garamond/latin-500.css';
+import '@fontsource/cormorant-garamond/latin-300-italic.css';
+import '@fontsource/cormorant-garamond/latin-400-italic.css';
+import '@fontsource/jost/latin-300.css';
+import '@fontsource/jost/latin-400.css';
+import '@fontsource/jost/latin-500.css';
+import '@fontsource/pinyon-script/latin-400.css';
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { SplitText } from 'gsap/SplitText';
@@ -105,6 +116,7 @@ function intro() {
     lenis.start();
   };
   const tl = gsap.timeline({ defaults: { ease: 'expo.out' }, onComplete: ready });
+  gsap.set('.hero-content', { visibility: 'visible' }); // fonts are ready by now
   if (reduceMotion) {
     gsap.set(['.hero-canvas', '.hero-sub', '.hero-cta', '.hero-eyebrow'], { opacity: 1 });
     gsap.set('.hero-title .line > span', { y: 0 });
@@ -112,25 +124,35 @@ function intro() {
     return;
   }
   gsap.set(['.hero-sub', '.hero-cta'], { y: 24 });
-  // The mark rises into focus, then a band of light sweeps across the gold
-  tl.fromTo('.loader-mark .monogram',
-      { clipPath: 'inset(100% 0% 0% 0%)', filter: 'blur(10px)', scale: 0.9, y: 16 },
-      { clipPath: 'inset(0% 0% 0% 0%)', filter: 'blur(0px)', scale: 1, y: 0, duration: 1.6, ease: 'power3.out' })
-    .to('.loader-bar i', { scaleX: 1, duration: 1.8, ease: 'power3.inOut' }, 0)
-    .to('.loader-word span', { y: 0, duration: 1, stagger: 0.06 }, 0.3)
-    .fromTo('.loader-shine', { backgroundPosition: '160% 0' }, { backgroundPosition: '-60% 0', duration: 1.3, ease: 'power2.inOut' }, 1.05)
-    .to('.loader-inner', { scale: 0.92, opacity: 0, duration: 0.8, ease: 'power3.in' }, 2.3)
-    .to('.loader', { clipPath: 'inset(0 0 100% 0)', duration: 1.2, ease: 'expo.inOut' }, 2.7)
-    .set('.loader', { display: 'none' })
-    .to('.hero-canvas', { opacity: 1, duration: 2.4, ease: 'power2.out' }, 2.9)
-    .fromTo('.nav', { y: -30, opacity: 0 }, { y: 0, opacity: 1, duration: 1.2 }, 3.3)
-    .to('.hero-eyebrow', { opacity: 1, duration: 1 }, 3.3)
-    .to('.hero-title .line > span', { y: 0, duration: 1.6, stagger: 0.12 }, 3.2)
-    .to('.hero-sub', { opacity: 1, y: 0, duration: 1.4 }, 3.7)
-    .to('.hero-cta', { opacity: 1, y: 0, duration: 1.4 }, 3.85)
-    .from('.hero-scroll', { opacity: 0, duration: 1 }, 4.2);
+
+  // The full loader plays once per visit; coming back to the site skips it.
+  let seen = false;
+  try { seen = sessionStorage.getItem('nx-intro') === '1'; sessionStorage.setItem('nx-intro', '1'); } catch (e) { /* private mode */ }
+  let t = 0; // when the hero starts revealing
+  if (seen) {
+    gsap.set('.loader', { display: 'none' });
+  } else {
+    // The mark rises into focus, then a band of light sweeps across the gold
+    tl.fromTo('.loader-mark .monogram',
+        { clipPath: 'inset(100% 0% 0% 0%)', filter: 'blur(10px)', scale: 0.9, y: 16 },
+        { clipPath: 'inset(0% 0% 0% 0%)', filter: 'blur(0px)', scale: 1, y: 0, duration: 0.9, ease: 'power3.out' })
+      .to('.loader-bar i', { scaleX: 1, duration: 1.1, ease: 'power3.inOut' }, 0)
+      .to('.loader-word span', { y: 0, duration: 0.7, stagger: 0.05 }, 0.15)
+      .fromTo('.loader-shine', { backgroundPosition: '160% 0' }, { backgroundPosition: '-60% 0', duration: 0.8, ease: 'power2.inOut' }, 0.55)
+      .to('.loader-inner', { scale: 0.94, opacity: 0, duration: 0.45, ease: 'power3.in' }, 1.15)
+      .to('.loader', { clipPath: 'inset(0 0 100% 0)', duration: 0.9, ease: 'expo.inOut' }, 1.3)
+      .set('.loader', { display: 'none' });
+    t = 1.45;
+  }
+  tl.to('.hero-canvas', { opacity: 1, duration: 2, ease: 'power2.out' }, t)
+    .fromTo('.nav', { y: -30, opacity: 0 }, { y: 0, opacity: 1, duration: 1.1 }, t + 0.2)
+    .to('.hero-eyebrow', { opacity: 1, duration: 0.9 }, t + 0.15)
+    .to('.hero-title .line > span', { y: 0, duration: 1.4, stagger: 0.1 }, t)
+    .to('.hero-sub', { opacity: 1, y: 0, duration: 1.2 }, t + 0.35)
+    .to('.hero-cta', { opacity: 1, y: 0, duration: 1.2 }, t + 0.45)
+    .from('.hero-scroll', { opacity: 0, duration: 1 }, t + 0.8);
   // Let people move on as soon as the hero headline is up.
-  tl.call(ready, null, 3.6);
+  tl.call(ready, null, t + 0.4);
 }
 
 document.fonts.ready.then(() => {
@@ -182,7 +204,7 @@ function setupScenes() {
 
   // Statement: words light up as it arrives
   const st = $('[data-words]');
-  SplitText.create(st, { type: 'words', wordsClass: 'w' });
+  SplitText.create(st, { type: 'words', wordsClass: 'w', aria: 'none' }); // the words stay readable as plain text
   gsap.to(st.querySelectorAll('.w'), {
     opacity: 1, stagger: 0.1, ease: 'none',
     scrollTrigger: { trigger: '.statement', start: 'top 70%', end: 'top 5%', scrub: 0.5 },
